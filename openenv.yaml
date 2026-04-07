@@ -1,0 +1,69 @@
+environment:
+  name: "DevOps-AIOps-Sim-v1"
+  version: "1.0"
+  description: "A realistic AIOps incident response simulation for service reliability engineering."
+  entry_point: "env.devops_env:DevOpsEnv"
+  max_steps: 15
+  services:
+    - api
+    - database
+    - cache
+    - worker
+  action_space:
+    - name: action_type
+      type: categorical
+      values:
+        - restart_service
+        - scale_service
+        - update_config
+        - none
+    - name: target
+      type: categorical
+      values:
+        - api
+        - database
+        - cache
+        - worker
+        - none
+    - name: value
+      type: union
+      options:
+        - type: integer
+        - type: string
+  observation_space:
+    services:
+      type: dict
+      keys:
+        - api
+        - database
+        - cache
+        - worker
+      value:
+        type: dict
+        properties:
+          name: string
+          status:
+            type: categorical
+            values: [running, crashed]
+          instances: integer
+          cpu_usage: float
+          memory_usage: float
+          error_rate: float
+    logs:
+      type: list
+      items: string
+    latency:
+      type: float
+    traffic:
+      type: integer
+  tasks:
+    - name: "Easy: API Crash"
+      description: "Restart a crashed API service to restore availability."
+    - name: "Medium: Database Auth Failure"
+      description: "Repair database authentication and reduce API error propagation."
+    - name: "Hard: Cascading Traffic Flood"
+      description: "Recover cache and scale API under heavy traffic to stabilize the system."
+metrics:
+  latency_threshold: 300
+  cpu_threshold: 90
+  reward_range: [0.0, 1.0]
