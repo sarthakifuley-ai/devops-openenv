@@ -1,2 +1,8 @@
+streamlit
+pandas
+plotly
 openai
 pydantic
+pyyaml
+fastapi
+uvicorn
