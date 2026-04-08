@@ -1,11 +1,11 @@
 ﻿import os
-from openenv import RemoteEnvClient 
+# Import your local environment class instead of the remote client
+from env.devops_env import DevOpsEnv 
 
-# 1. Initialize the Environment Client (Connects to your Hugging Face Space)
-API_BASE_URL = os.getenv("API_BASE_URL", "https://sarthaki-19-devops-openenv.hf.space")
-env = RemoteEnvClient(api_base_url=API_BASE_URL)
+# Initialize the environment locally
+# The validator usually expects the env to be ready to go
+env = DevOpsEnv() 
 
-# Import your local task/grader logic
 from graders.easy_grader import grade as grade_easy
 from graders.medium_grader import grade_medium
 from graders.hard_grader import grade_hard
@@ -52,26 +52,31 @@ def mock_decision(state_dict):
 
     return {"action_type": "none", "target": "none", "reasoning": "System stable."}
 
-def evaluate_task(agent, task, grader, max_steps=15):
-    if env is None:
-        raise Exception("Environment not initialized.")
-
+def evaluate_task(agent, task, grader_func, max_steps=15):
     task_id = task.get('id', 'easy')
+    
+    # 1. Reset the local environment
     state = env.reset(task_id=task_id)
     total_reward = 0
     
     for step_num in range(max_steps):
-        # Use the agent's predict method
         action = agent.predict(state)
         
-        # Unpack the 4 values returned by RemoteEnvClient
-        state, reward, done, info = env.step(action)
+        # 2. Use a flexible unpack to avoid "too many values to unpack" errors
+        result = env.step(action)
+        
+        # This handles both (obs, reward, done, info) 
+        # and (obs, reward, terminated, truncated, info)
+        state = result[0]
+        reward = result[1]
+        done = result[2] or (result[3] if len(result) > 4 else False)
+        
         total_reward += reward
         
         if done:
             break
             
-    return grader(state, total_reward) # Call the grader function directly
+    return grader_func(state, total_reward)
 
 def run_baseline():
     # Initialize our agent wrapper
