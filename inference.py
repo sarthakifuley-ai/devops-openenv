@@ -52,27 +52,26 @@ def ai_agent_decision(state_dict):
 
 
 def evaluate_task(agent, task, grader, max_steps=15):
-    # Initialize the environment
-    state = env.reset(task_id=task.get('id', 'easy'))
+    # Ensure env is actually available
+    if env is None:
+        raise Exception("Environment not initialized. Check your connection.")
+
+    # FIX: Use the 'task' dictionary to get the ID correctly
+    task_id = task.get('id', 'easy')
+    
+    # Try the reset
+    state = env.reset(task_id=task_id)
     total_reward = 0
     
     for step_num in range(max_steps):
-        # 1. Agent decides what to do
         action = agent.predict(state)
-        
-        # 2. Step the environment - capture all 4 return values
-        # This is where the fix happens!
+        # Remember: 4 values!
         state, reward, done, info = env.step(action)
-        
         total_reward += reward
-        
-        # 3. Check the 'done' variable directly (NOT env.done)
         if done:
             break
             
-    # Final grading
-    score = grader.grade(state, total_reward)
-    return score
+    return grader.grade(state, total_reward)
 
 def run_baseline():
     task_suite = [
