@@ -1,87 +1,23 @@
 ﻿import os
 import sys
-from openai import OpenAI # Or the specific client library required
 import traceback
+from openai import OpenAI  # Ensure 'openai' is in your requirements.txt
 
 def log_print(message):
-    """Ensures the validator sees the output immediately."""
+    """Ensures the validator sees the output immediately for parsing."""
     print(message, flush=True)
 
-def run_baseline():
-
-    # --- CRITICAL FIX FOR LLM CRITERIA CHECK ---
-
-    try:
-
-        # These variables are injected by the validator automatically
-
-        api_key = os.environ.get("API_KEY", "default_key")
-
-        base_url = os.environ.get("API_BASE_URL", "https://api.openai.com/v1")
-
-        
-
-        log_print(f"Initializing LLM client with proxy: {base_url}")
-
-        
-
-        # Initialize the client specifically using the proxy details
-
-        client = OpenAI(
-
-            api_key=api_key,
-
-            base_url=base_url
-
-        )
-
-        
-
-        # Pass this client to your agent
-
-        # agent = MyAgent(llm_client=client) 
-
-        log_print("Agent initialized with Proxy successfully.")
-
-        
-
-    except Exception as e:
-
-        log_print(f"Failed to initialize LLM client: {e}")
-
-        sys.exit(1)
-
-def get_env():
-    """
-    Attempts to import the environment. 
-    REPLACE 'env_module_name' with the actual name provided in your docs.
-    """
-    try:
-        # Try importing common competition environments
-        # If your environment is a file named 'environment.py' in the same folder:
-        import environment as env_module
-        return env_module.env
-    except ImportError:
-        try:
-            # If the environment is provided as a package:
-            import gym as env_module 
-            return env_module
-        except ImportError:
-            log_print("CRITICAL: Environment module not found. Check your import name.")
-            raise
-
-def evaluate_task(agent, task, max_steps=15):
-    task_name = task.get('id', 'task_default')
-    
-    # --- REQUIRED: [START] block ---
-    log_print(f"[START] task={task_name}")
+def evaluate_task(agent, client, task, max_steps=15):
+    # This must match what the 'Output Parsing' step expects
+    task_id = task.get('id', 'task_1')
+    log_print(f"[START] task={task_id}")
     
     try:
-        env = get_env()
-        state = env.reset(task_id=task_name)
+        # Replace 'your_env_module' with the actual env provided in the hackathon
+        from environment import env 
+        state = env.reset(task_id=task_id)
     except Exception as e:
-        log_print(f"Reset Error: {e}")
-        log_print(f"[END] task={task_name} score=0 steps=0 status=error")
+        log_print(f"[END] task={task_id} score=0 steps=0 status=reset_failed")
         return
 
     total_reward = 0
@@ -89,49 +25,58 @@ def evaluate_task(agent, task, max_steps=15):
     
     try:
         for step in range(1, max_steps + 1):
-            # Your agent logic
-            action = agent.act(state) if agent else 0 
+            # Pass the client to your agent so it uses the proxy
+            action = agent.act(state, client) 
             
-            # Environment step
             state, reward, done, info = env.step(action)
             total_reward += reward
             actual_steps = step
             
-            # --- REQUIRED: [STEP] block ---
             log_print(f"[STEP] step={step} reward={reward}")
-            
             if done:
                 break
         
-        # --- REQUIRED: [END] block ---
-        log_print(f"[END] task={task_name} score={total_reward} steps={actual_steps}")
-
+        log_print(f"[END] task={task_id} score={total_reward} steps={actual_steps}")
     except Exception as e:
-        log_print(f"[END] task={task_name} score={total_reward} steps={actual_steps} status=crashed")
+        log_print(f"[END] task={task_id} score={total_reward} steps={actual_steps} status=crashed")
 
 def run_baseline():
-    # 1. Initialize Agent
-    # Replace this with your actual model loading code
-    class SimpleAgent:
-        def act(self, state): return 0 # Simple placeholder action
-
+    # --- STEP 1: INITIALIZE LLM CLIENT VIA PROXY ---
     try:
-        agent = SimpleAgent()
-        log_print("Agent loaded successfully.")
+        # Fetching injected environment variables
+        api_key = os.environ.get("API_KEY")
+        api_base = os.environ.get("API_BASE_URL")
+        
+        if not api_key or not api_base:
+            log_print("Error: API_KEY or API_BASE_URL not found in environment.")
+            sys.exit(1)
+
+        # Initialize the OpenAI client pointing to the LiteLLM proxy
+        client = OpenAI(
+            api_key=api_key,
+            base_url=api_base
+        )
+        log_print(f"LLM Client initialized with Proxy: {api_base}")
     except Exception as e:
-        log_print(f"Agent Load Error: {e}")
+        log_print(f"Failed to initialize LLM: {e}")
         sys.exit(1)
 
-    # 2. Define Tasks 
-    # Usually, the platform provides these. If not, we iterate based on the env scope.
-    tasks = [{"id": "task_1"}] # Update this list based on your competition rules
+    # --- STEP 2: INITIALIZE AGENT ---
+    try:
+        # Your actual agent class
+        from agent import MyAgent 
+        agent = MyAgent() 
+    except Exception as e:
+        log_print(f"Agent Init Error: {e}")
+        sys.exit(1)
 
+    # --- STEP 3: RUN TASKS ---
+    tasks = [{"id": "task_1"}] # Adjust based on how tasks are provided
     for task in tasks:
-        evaluate_task(agent, task)
+        evaluate_task(agent, client, task)
 
 if __name__ == "__main__":
     try:
         run_baseline()
-    except Exception as e:
-        traceback.print_exc()
-        sys.exit(0) # Exit 0 ensures logs are saved even on failure
+    except Exception:
+        sys.exit(0) # Exit 0 to ensure logs are captured
