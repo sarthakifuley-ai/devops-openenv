@@ -20,9 +20,13 @@ app.add_middleware(
 env = None
 
 @app.post("/reset")
-async def reset(payload: dict = Body(default={"task_id": "easy"})):
+async def reset(payload: dict = Body(default=None)):
     global env
-    task_id = payload.get("task_id", "easy")
+    # Handle cases where payload might be None or empty
+    task_id = "easy"
+    if payload and "task_id" in payload:
+        task_id = payload["task_id"]
+    
     task_map = {"easy": TASK_EASY, "medium": TASK_MEDIUM, "hard": TASK_HARD}
     config = task_map.get(task_id.lower(), TASK_EASY)
         
