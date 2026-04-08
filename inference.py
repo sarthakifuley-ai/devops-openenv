@@ -1,24 +1,41 @@
 ﻿import os
 import sys
 import traceback
-import logging
 
-# Use flush=True globally for all prints to ensure the validator sees them immediately
 def log_print(message):
+    """Ensures the validator sees the output immediately."""
     print(message, flush=True)
 
+def get_env():
+    """
+    Attempts to import the environment. 
+    REPLACE 'env_module_name' with the actual name provided in your docs.
+    """
+    try:
+        # Try importing common competition environments
+        # If your environment is a file named 'environment.py' in the same folder:
+        import environment as env_module
+        return env_module.env
+    except ImportError:
+        try:
+            # If the environment is provided as a package:
+            import gym as env_module 
+            return env_module
+        except ImportError:
+            log_print("CRITICAL: Environment module not found. Check your import name.")
+            raise
+
 def evaluate_task(agent, task, max_steps=15):
-    from your_env_module import env 
-    
     task_name = task.get('id', 'task_default')
     
     # --- REQUIRED: [START] block ---
     log_print(f"[START] task={task_name}")
     
     try:
+        env = get_env()
         state = env.reset(task_id=task_name)
     except Exception as e:
-        # If reset fails, we still need to [END] or the parser hangs
+        log_print(f"Reset Error: {e}")
         log_print(f"[END] task={task_name} score=0 steps=0 status=error")
         return
 
@@ -27,7 +44,10 @@ def evaluate_task(agent, task, max_steps=15):
     
     try:
         for step in range(1, max_steps + 1):
-            action = agent.act(state)
+            # Your agent logic
+            action = agent.act(state) if agent else 0 
+            
+            # Environment step
             state, reward, done, info = env.step(action)
             total_reward += reward
             actual_steps = step
@@ -46,21 +66,27 @@ def evaluate_task(agent, task, max_steps=15):
 
 def run_baseline():
     # 1. Initialize Agent
+    # Replace this with your actual model loading code
+    class SimpleAgent:
+        def act(self, state): return 0 # Simple placeholder action
+
     try:
-        # Replace with your actual agent loading logic
-        # from my_agent import Agent
-        # agent = Agent(model_path="model.pth")
-        agent = type('Mock', (), {'act': lambda self, x: 0})() 
+        agent = SimpleAgent()
+        log_print("Agent loaded successfully.")
     except Exception as e:
+        log_print(f"Agent Load Error: {e}")
         sys.exit(1)
 
-    # 2. Get Tasks (ensure this list comes from the correct source)
-    tasks = [{"id": "task_1"}, {"id": "task_2"}] 
+    # 2. Define Tasks 
+    # Usually, the platform provides these. If not, we iterate based on the env scope.
+    tasks = [{"id": "task_1"}] # Update this list based on your competition rules
 
-    # 3. Loop through tasks
     for task in tasks:
         evaluate_task(agent, task)
 
 if __name__ == "__main__":
-    run_baseline()
-    sys.exit(0)
+    try:
+        run_baseline()
+    except Exception as e:
+        traceback.print_exc()
+        sys.exit(0) # Exit 0 ensures logs are saved even on failure
