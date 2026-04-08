@@ -6,6 +6,14 @@ from tasks.hard_incident import TASK_HARD
 
 app = FastAPI()
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allows the hackathon portal to connect
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 # Global environment instance
 # The validator starts by calling /reset
 env = None
