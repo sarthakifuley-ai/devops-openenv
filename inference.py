@@ -51,29 +51,28 @@ def ai_agent_decision(state_dict):
     return mock_decision(state_dict)
 
 
-def evaluate_task(task_name, task_config, grader, max_steps=15):
-    env = DevOpsEnv(task_config)
-    state = env.reset()
-    rewards = []
-
-    for _ in range(max_steps):
-        action = mock_decision(state.model_dump())
-        # Unpack all 4 values returned by the OpenEnv step function
+def evaluate_task(agent, task, grader, max_steps=15):
+    # Initialize the environment
+    state = env.reset(task_id=task.get('id', 'easy'))
+    total_reward = 0
+    
+    for step_num in range(max_steps):
+        # 1. Agent decides what to do
+        action = agent.predict(state)
+        
+        # 2. Step the environment - capture all 4 return values
+        # This is where the fix happens!
         state, reward, done, info = env.step(action)
-        rewards.append(reward)
-        if env.done:
+        
+        total_reward += reward
+        
+        # 3. Check the 'done' variable directly (NOT env.done)
+        if done:
             break
-
-    final_score = grader(state)
-    return {
-        "task": task_name,
-        "steps": env.step_count,
-        "average_reward": round(sum(rewards) / len(rewards), 3) if rewards else 0.0,
-        "final_reward": reward,
-        "grader_score": final_score,
-        "final_state": state.model_dump()
-    }
-
+            
+    # Final grading
+    score = grader.grade(state, total_reward)
+    return score
 
 def run_baseline():
     task_suite = [
