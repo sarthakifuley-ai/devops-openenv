@@ -1,4 +1,12 @@
 ﻿# 🛠️ AIOps OpenEnv Dashboard
+---
+title: DevOps OpenEnv
+emoji: 🛡️
+colorFrom: blue
+colorTo: green
+sdk: docker
+app_port: 8000
+---
 
 An AI-native DevOps simulation for incident response, where an agent acts as a Site Reliability Engineer (SRE) handling API, database, cache, and worker incidents.
 
