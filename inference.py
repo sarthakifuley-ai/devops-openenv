@@ -3,81 +3,64 @@ import sys
 import traceback
 import logging
 
-# Set up logging to help you debug via the 'Participant Log'
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
+# Use flush=True globally for all prints to ensure the validator sees them immediately
+def log_print(message):
+    print(message, flush=True)
 
 def evaluate_task(agent, task, max_steps=15):
-    """
-    Evaluates a single task with aggressive error handling.
-    """
-    from your_env_module import env  # Ensure this matches the competition API
+    from your_env_module import env 
     
-    task_id = task.get('id', 'unknown')
-    logger.info(f"Starting Task: {task_id}")
+    task_name = task.get('id', 'task_default')
+    
+    # --- REQUIRED: [START] block ---
+    log_print(f"[START] task={task_name}")
     
     try:
-        # The crash happened here: we wrap it in a localized try-except
-        state = env.reset(task_id=task_id)
+        state = env.reset(task_id=task_name)
     except Exception as e:
-        logger.error(f"Failed to reset environment for task {task_id}: {e}")
-        return {"task_id": task_id, "score": 0, "status": "reset_failed"}
+        # If reset fails, we still need to [END] or the parser hangs
+        log_print(f"[END] task={task_name} score=0 steps=0 status=error")
+        return
 
     total_reward = 0
+    actual_steps = 0
+    
     try:
-        for step in range(max_steps):
-            # 1. Get action from agent
+        for step in range(1, max_steps + 1):
             action = agent.act(state)
-            
-            # 2. Step the environment
             state, reward, done, info = env.step(action)
             total_reward += reward
+            actual_steps = step
+            
+            # --- REQUIRED: [STEP] block ---
+            log_print(f"[STEP] step={step} reward={reward}")
             
             if done:
-                logger.info(f"Task {task_id} completed in {step+1} steps.")
                 break
-        else:
-            logger.warning(f"Task {task_id} reached max steps ({max_steps}).")
-            
-        return {"task_id": task_id, "score": total_reward, "status": "success"}
+        
+        # --- REQUIRED: [END] block ---
+        log_print(f"[END] task={task_name} score={total_reward} steps={actual_steps}")
 
     except Exception as e:
-        logger.error(f"Error during execution of task {task_id}: {e}")
-        traceback.print_exc()
-        return {"task_id": task_id, "score": total_reward, "status": "crashed"}
+        log_print(f"[END] task={task_name} score={total_reward} steps={actual_steps} status=crashed")
 
 def run_baseline():
-    """
-    Main entry point for Phase 2.
-    """
-    # 1. Initialize your model/agent ONCE (outside the loop)
+    # 1. Initialize Agent
     try:
+        # Replace with your actual agent loading logic
         # from my_agent import Agent
-        # agent = Agent(model_path="weights/best_model.pth")
-        agent = type('MockAgent', (), {'act': lambda self, x: 0})() # Placeholder
-        logger.info("Agent initialized successfully.")
+        # agent = Agent(model_path="model.pth")
+        agent = type('Mock', (), {'act': lambda self, x: 0})() 
     except Exception as e:
-        logger.critical(f"Failed to initialize Agent: {e}")
-        sys.exit(1) # Critical failure: Agent won't load
+        sys.exit(1)
 
-    # 2. Load tasks (usually provided by the competition framework)
-    # This might be env.get_tasks() or a fixed list
-    tasks = [{"id": "task_001"}, {"id": "task_002"}] 
+    # 2. Get Tasks (ensure this list comes from the correct source)
+    tasks = [{"id": "task_1"}, {"id": "task_2"}] 
 
-    results = []
+    # 3. Loop through tasks
     for task in tasks:
-        result = evaluate_task(agent, task)
-        results.append(result)
-
-    # 3. Final summary
-    success_count = sum(1 for r in results if r['status'] == 'success')
-    logger.info(f"Phase 2 complete. Success: {success_count}/{len(tasks)}")
+        evaluate_task(agent, task)
 
 if __name__ == "__main__":
-    try:
-        run_baseline()
-    except Exception as e:
-        logger.error(f"Top-level unhandled exception: {e}")
-        # We exit with 0 even on some errors to ensure the platform 
-        # registers the logs instead of just a "Process Failed" error.
-        sys.exit(0)
+    run_baseline()
+    sys.exit(0)
