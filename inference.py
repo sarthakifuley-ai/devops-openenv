@@ -1,4 +1,5 @@
-﻿from env.devops_env import DevOpsEnv
+﻿import env
+from env.devops_env import DevOpsEnv
 from graders.easy_grader import grade as grade_easy
 from graders.medium_grader import grade_medium
 from graders.hard_grader import grade_hard
@@ -57,7 +58,8 @@ def evaluate_task(task_name, task_config, grader, max_steps=15):
 
     for _ in range(max_steps):
         action = mock_decision(state.model_dump())
-        state, reward = env.step(action)
+        # Unpack all 4 values returned by the OpenEnv step function
+        state, reward, done, info = env.step(action)
         rewards.append(reward)
         if env.done:
             break
