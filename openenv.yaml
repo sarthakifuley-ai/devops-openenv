@@ -58,11 +58,17 @@ environment:
       type: integer
   tasks:
     - name: "Easy: API Crash"
+      task_id: "easy"
       description: "Restart a crashed API service to restore availability."
+      grader: "graders.easy_grader:grade"
     - name: "Medium: Database Auth Failure"
+      task_id: "medium"
       description: "Repair database authentication and reduce API error propagation."
+      grader: "graders.medium_grader:grade_medium"
     - name: "Hard: Cascading Traffic Flood"
+      task_id: "hard"
       description: "Recover cache and scale API under heavy traffic to stabilize the system."
+      grader: "graders.hard_grader:grade_hard"
 metrics:
   latency_threshold: 300
   cpu_threshold: 90
